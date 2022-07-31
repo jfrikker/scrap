@@ -1,26 +1,22 @@
 module LLIR (
-  BinaryOperation(..),
   dataType,
   Expression(..),
   Function(..),
   Type(..),
 ) where
 
+import qualified Data.List as List
 import Data.Word (Word8, Word16, Word32, Word64)
+import qualified Prim as Prim
 
-data BinaryOperation = Add |
-  Subtract |
-  Multiply |
-  Divide
-
-data Expression = Binary BinaryOperation Expression Expression |
+data Expression = Binary Prim.BinaryOperation Expression Expression |
   I64Literal Word64 |
   StaticFunctionCall String [Expression] Type |
   Argument Word16 Type
 
 data Type = I64Type
 
-data Function = Function [Type] Expression
+data Function = Function String [Type] Expression
 
 dataType :: Expression -> Type
 dataType (Argument _ t) = t

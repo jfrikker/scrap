@@ -1,5 +1,4 @@
 module LLVM (
-  writeDefinitions,
   writeFunction
 ) where
 
@@ -14,18 +13,17 @@ import qualified LLVM.AST.Type as Type
 import LLVM.IRBuilder
 import qualified LLVM.IRBuilder.Constant as Constant
 import qualified LLIR
+import qualified Prim
 
-writeDefinitions :: [(String, LLIR.Function)] -> [Definition]
-writeDefinitions = map (uncurry writeFunction)
-
-writeFunction :: String -> LLIR.Function -> Definition
-writeFunction symbol (LLIR.Function params expr) = GlobalDefinition $ Global.functionDefaults {
-  Global.name = Name.mkName symbol,
+writeFunction :: LLIR.Function -> Definition
+writeFunction func@(LLIR.Function name params expr) = GlobalDefinition $ Global.functionDefaults {
+  Global.name = name',
   Global.parameters = (params', False),
   Global.returnType = llvmType $ LLIR.dataType expr,
   Global.basicBlocks = body
   }
-  where params' = List.imap (\i t -> Global.Parameter (llvmType t) (Name.mkName $ "param" ++ (show i)) []) params
+  where name' = Name.mkName name
+        params' = List.imap (\i t -> Global.Parameter (llvmType t) (Name.mkName $ "param" ++ (show i)) []) params
         body = execIRBuilder emptyIRBuilder $ do
           result <- writeExpression expr
           ret result
@@ -33,7 +31,7 @@ writeFunction symbol (LLIR.Function params expr) = GlobalDefinition $ Global.fun
 writeExpression :: LLIR.Expression -> IRBuilder Operand
 writeExpression (LLIR.Argument idx t) = return $ Operand.LocalReference (llvmType t) (Name.mkName $ "param" ++ (show idx))
 writeExpression (LLIR.I64Literal val) = return $ Constant.int64 $ fromIntegral val
-writeExpression (LLIR.Binary LLIR.Add a1 a2) = do
+writeExpression (LLIR.Binary Prim.Add a1 a2) = do
   a1' <- writeExpression a1
   a2' <- writeExpression a2
   add a1' a2'
