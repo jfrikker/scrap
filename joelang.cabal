@@ -25,17 +25,9 @@ source-repository head
 
 library
   exposed-modules:
-      AST
-      AST.ASTRoot
-      AST.Expression
-      AST.Token
-      AST.Types
-      JIR
-      JIR.Type
-      Lib
-      LLIR
-      LLVM
-      Prim
+      Joe.LLIR
+      Joe.LLVM
+      Joe.Prim
   other-modules:
       Paths_joelang
   hs-source-dirs:

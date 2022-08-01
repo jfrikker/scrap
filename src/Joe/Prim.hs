@@ -1,4 +1,4 @@
-module Prim (
+module Joe.Prim (
   BinaryOperation(..)
 ) where
 

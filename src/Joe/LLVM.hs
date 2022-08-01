@@ -1,8 +1,10 @@
-module LLVM (
+module Joe.LLVM (
   writeFunction
 ) where
 
 import qualified Data.List.Index as List
+import qualified Joe.LLIR as LLIR
+import qualified Joe.Prim as Prim
 import LLVM.AST (Definition(GlobalDefinition))
 import qualified LLVM.AST.Constant as Constant
 import qualified LLVM.AST.Global as Global
@@ -12,8 +14,6 @@ import LLVM.AST.Operand (Operand)
 import qualified LLVM.AST.Type as Type
 import LLVM.IRBuilder
 import qualified LLVM.IRBuilder.Constant as Constant
-import qualified LLIR
-import qualified Prim
 
 writeFunction :: LLIR.Function -> Definition
 writeFunction func@(LLIR.Function name params expr) = GlobalDefinition $ Global.functionDefaults {
@@ -35,7 +35,7 @@ writeExpression (LLIR.Binary Prim.Add a1 a2) = do
   a1' <- writeExpression a1
   a2' <- writeExpression a2
   add a1' a2'
-writeExpression (LLIR.StaticFunctionCall name args _) = do
+writeExpression (LLIR.Call name args _) = do
   args' <- mapM (\a -> writeExpression a >>= \a' -> return (a', [])) args
   call func args'
   where argTypes = map (\a -> (llvmType $ LLIR.dataType a, [])) args
