@@ -1,5 +1,5 @@
 module Joe.LLVM (
-  writeFunction
+  writeGlobal
 ) where
 
 import qualified Data.List.Index as List
@@ -15,8 +15,8 @@ import qualified LLVM.AST.Type as Type
 import LLVM.IRBuilder
 import qualified LLVM.IRBuilder.Constant as Constant
 
-writeFunction :: LLIR.Function -> Definition
-writeFunction func@(LLIR.Function name params expr) = GlobalDefinition $ Global.functionDefaults {
+writeGlobal :: String -> LLIR.Global -> Definition
+writeGlobal name func@(LLIR.Global params expr) = GlobalDefinition $ Global.functionDefaults {
   Global.name = name',
   Global.parameters = (params', False),
   Global.returnType = llvmType $ LLIR.dataType expr,
@@ -35,7 +35,7 @@ writeExpression (LLIR.Binary Prim.Add a1 a2) = do
   a1' <- writeExpression a1
   a2' <- writeExpression a2
   add a1' a2'
-writeExpression (LLIR.Call name args _) = do
+writeExpression (LLIR.Call (LLIR.GlobalReference name) args _) = do
   args' <- mapM (\a -> writeExpression a >>= \a' -> return (a', [])) args
   call func args'
   where argTypes = map (\a -> (llvmType $ LLIR.dataType a, [])) args

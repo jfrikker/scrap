@@ -27,6 +27,9 @@ library
   exposed-modules:
       Joe.LLIR
       Joe.LLVM
+      Joe.Passes.Monad
+      Joe.Passes.RemoveUnusedGlobals
+      Joe.Passes.StaticFunctionTemplateElimination
       Joe.Prim
   other-modules:
       Paths_joelang
@@ -36,8 +39,11 @@ library
       base >=4.7 && <5
     , containers
     , ilist
+    , lens
     , llvm-hs-pretty
     , llvm-hs-pure
+    , monad-loops
+    , mtl
     , text
   default-language: Haskell2010
 
@@ -53,8 +59,11 @@ executable joelang-exe
     , containers
     , ilist
     , joelang
+    , lens
     , llvm-hs-pretty
     , llvm-hs-pure
+    , monad-loops
+    , mtl
     , text
   default-language: Haskell2010
 
@@ -71,7 +80,10 @@ test-suite joelang-test
     , containers
     , ilist
     , joelang
+    , lens
     , llvm-hs-pretty
     , llvm-hs-pure
+    , monad-loops
+    , mtl
     , text
   default-language: Haskell2010
