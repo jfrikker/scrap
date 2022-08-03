@@ -15,7 +15,7 @@ rug = runPass $ do
   globs <- allGlobals
   let refs = Set.fromList $ concatMap (\(_, LLIR.Global _ body) -> Maybe.catMaybes $ map referenced $ LLIR.flattenExpressions body) globs
   let names = Set.fromList $ map fst globs
-  let toRemove = Set.difference names refs
+  let toRemove = Set.difference names $ Set.insert "main" refs
   forM_ toRemove removeGlobal
 
 referenced :: LLIR.Expression -> Maybe String

@@ -5,6 +5,7 @@ module Joe.LLIR (
   Globals,
   flattenExpressions,
   mangle,
+  mangleType,
   mapExpressions,
   mapExpressionsM,
   prependLength,
@@ -56,16 +57,14 @@ flattenExpressions e@(Binary op a1 a2) = e : flattenExpressions a1 ++ flattenExp
 flattenExpressions e@(Call f args _) = e : flattenExpressions f ++ List.concatMap flattenExpressions args
 flattenExpressions e = [e]
 
-replaceArg :: Int -> Expression -> Global -> Global
-replaceArg i rep (Global args body) = Global (removeIdx i args) $ mapExpressions inner body
+replaceArg :: Int -> [Type] -> Expression -> Global -> Global
+replaceArg i newArgs rep (Global args body) = Global (argsBefore ++ newArgs ++ argsAfter) $ mapExpressions inner body
   where inner e@(Argument n t)
           | n == i = rep
-          | n > i = Argument (n - 1) t
+          | n > i = Argument (n + length newArgs - 1) t
           | otherwise = e
         inner e = e
-
-removeIdx :: Int -> [a] -> [a]
-removeIdx n xs = let (as, bs) = splitAt n xs in as ++ tail bs
+        (argsBefore, (_ : argsAfter)) = List.splitAt i args
 
 prependLength :: String -> String
 prependLength s = (show $ length s) ++ s

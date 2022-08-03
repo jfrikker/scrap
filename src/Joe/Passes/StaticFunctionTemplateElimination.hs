@@ -15,21 +15,21 @@ handleGlobal :: (String, LLIR.Global) -> PassM LLIR.Expression
 handleGlobal (_, (LLIR.Global _ body)) = LLIR.mapExpressionsM handleExpression body
 
 handleExpression :: LLIR.Expression -> PassM LLIR.Expression
-handleExpression e@(LLIR.Call (LLIR.GlobalReference name) args t)
-  | List.null staticArgs = return e
-  | otherwise = do
+handleExpression (LLIR.Call (LLIR.Call (LLIR.GlobalReference name) a1 _) a2 t) = handleExpression $ LLIR.Call (LLIR.GlobalReference name) (a1 ++ a2) t
+handleExpression e@(LLIR.Call (LLIR.GlobalReference name) args t) = do
     template <- findGlobal name
-    let rendered = foldr (\i -> LLIR.replaceArg i (args !! i)) template staticArgs
-    let renderedName = mangle name args
-    upsertGlobal renderedName rendered
-    return $ LLIR.Call (LLIR.GlobalReference renderedName) (filter (\a -> not $ isStaticFunc a) args) t
-  where isStaticFunc (LLIR.GlobalReference _) = True
-        isStaticFunc otherwise = False
-        staticArgs = List.findIndices isStaticFunc args
+    let (newArgs, rendered, renderedName, changed) = foldl (\(newA, newG, newN, c) a -> let (a', g', n', c') = maybeExpandArg (a, length newA, newG, newN) in (newA ++ a', g', n', c || c')) ([], template, name, False) args
+    if changed then do
+      upsertGlobal renderedName rendered
+      return $ LLIR.Call (LLIR.GlobalReference renderedName) newArgs t
+    else return e
 handleExpression e = return e
 
-mangle :: String -> [LLIR.Expression] -> String
-mangle name args = "_s" ++ (show $ length argNames) ++ "_" ++ LLIR.prependLength name ++ List.concatMap LLIR.prependLength argNames
-  where argNames = Maybe.catMaybes $ map argName args
-        argName (LLIR.GlobalReference name) = Just name
-        argName otherwise = Nothing
+maybeExpandArg :: (LLIR.Expression, Int, LLIR.Global, String) -> ([LLIR.Expression], LLIR.Global, String, Bool)
+maybeExpandArg (a@(LLIR.GlobalReference f), i, glob, name) = ([], LLIR.replaceArg i [] a glob, "_s" ++ LLIR.prependLength f ++ name, True)
+maybeExpandArg (a@(LLIR.Call f@(LLIR.GlobalReference fName) args t@(LLIR.FunctionType _ _)), i, glob, name) = (args, glob', newName, True)
+  where argTypes = map LLIR.dataType args
+        rep = LLIR.Call f (map (\(idx, a) -> LLIR.Argument (i + idx) (LLIR.dataType a)) $ List.zip [0..] args) t
+        glob' = LLIR.replaceArg i argTypes rep glob
+        newName = "_sp" ++ (show $ length args) ++ "f" ++ LLIR.prependLength fName ++ name
+maybeExpandArg (a, _, glob, name) = ([a], glob, name, False)
