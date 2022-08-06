@@ -2,6 +2,8 @@
 module Joe.Passes.Monad (
   allGlobals,
   findGlobal,
+  generateName,
+  modifyExpressions,
   modifyGlobals,
   PassM,
   removeGlobal,
@@ -66,3 +68,6 @@ modifyGlobals f = do
           newBody <- f g
           PassM $ globals.at name .= (Just $ LLIR.Global args newBody)
     
+modifyExpressions :: (LLIR.Expression -> PassM LLIR.Expression) -> PassM ()
+modifyExpressions f = modifyGlobals inner
+  where inner (_, LLIR.Global _ body) = LLIR.mapExpressionsM f body

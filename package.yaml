@@ -28,6 +28,7 @@ dependencies:
 - llvm-hs-pure
 - monad-loops
 - mtl
+- pretty-simple
 - text
 
 library:

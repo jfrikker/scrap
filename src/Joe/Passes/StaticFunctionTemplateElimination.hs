@@ -5,14 +5,11 @@ module Joe.Passes.StaticFunctionTemplateElimination (
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Joe.LLIR as LLIR
-import Joe.Passes.Monad (findGlobal, modifyGlobals, PassM, runPass, upsertGlobal)
+import Joe.Passes.Monad (findGlobal, modifyExpressions, PassM, runPass, upsertGlobal)
 import Joe.Passes.RemoveUnusedGlobals (rug)
 
 sfte :: LLIR.Globals -> LLIR.Globals
-sfte globs = rug $ runPass (modifyGlobals handleGlobal) globs
-
-handleGlobal :: (String, LLIR.Global) -> PassM LLIR.Expression
-handleGlobal (_, (LLIR.Global _ body)) = LLIR.mapExpressionsM handleExpression body
+sfte globs = rug $ runPass (modifyExpressions handleExpression) globs
 
 handleExpression :: LLIR.Expression -> PassM LLIR.Expression
 handleExpression (LLIR.Call (LLIR.Call (LLIR.GlobalReference name) a1 _) a2 t) = handleExpression $ LLIR.Call (LLIR.GlobalReference name) (a1 ++ a2) t
@@ -29,7 +26,7 @@ maybeExpandArg :: (LLIR.Expression, Int, LLIR.Global, String) -> ([LLIR.Expressi
 maybeExpandArg (a@(LLIR.GlobalReference f), i, glob, name) = ([], LLIR.replaceArg i [] a glob, "_s" ++ LLIR.prependLength f ++ name, True)
 maybeExpandArg (a@(LLIR.Call f@(LLIR.GlobalReference fName) args t@(LLIR.FunctionType _ _)), i, glob, name) = (args, glob', newName, True)
   where argTypes = map LLIR.dataType args
-        rep = LLIR.Call f (map (\(idx, a) -> LLIR.Argument (i + idx) (LLIR.dataType a)) $ List.zip [0..] args) t
+        rep = LLIR.Call f (map (\(idx, a) -> LLIR.LocalReference 0 (i + idx) (LLIR.dataType a)) $ List.zip [0..] args) t
         glob' = LLIR.replaceArg i argTypes rep glob
         newName = "_sp" ++ (show $ length args) ++ "f" ++ LLIR.prependLength fName ++ name
 maybeExpandArg (a, _, glob, name) = ([a], glob, name, False)

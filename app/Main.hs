@@ -7,23 +7,37 @@ import qualified Data.Text.Lazy.IO as TIO
 import qualified Joe.Prim as Prim
 import qualified Joe.LLIR as LLIR
 import qualified Joe.LLVM as LLVM
+import Joe.Passes.LowerLambdas (lowerLambdas)
 import Joe.Passes.StaticFunctionTemplateElimination (sfte)
 import LLVM.AST (defaultModule)
 import qualified LLVM.AST
 import LLVM.Pretty (ppllvm)
 import qualified System.IO as IO
+import Text.Pretty.Simple (pPrint)
 
 main :: IO ()
 main = do
-  print src
-  print prog
+  pPrint src
+  pPrint prog
   IO.withFile "out.ll" IO.WriteMode $ \h -> TIO.hPutStrLn h $ ppllvm mod
   where src = Map.fromList [("main", LLIR.Global [] $ LLIR.Call (LLIR.GlobalReference "increment") [LLIR.I64Literal 123] LLIR.I64Type),
-          ("one", LLIR.Global [] $ LLIR.I64Literal 1),
-          ("increment", LLIR.Global [LLIR.I64Type] $ LLIR.Call (LLIR.GlobalReference "flip") [LLIR.Call (LLIR.GlobalReference "add3") [LLIR.I64Literal 0] (LLIR.FunctionType [LLIR.I64Type, LLIR.I64Type] LLIR.I64Type), LLIR.Argument 0 LLIR.I64Type, LLIR.Call (LLIR.GlobalReference "one") [] LLIR.I64Type] LLIR.I64Type),
-          ("add3", LLIR.Global [LLIR.I64Type, LLIR.I64Type, LLIR.I64Type] $ LLIR.Binary Prim.Add (LLIR.Binary Prim.Add (LLIR.Argument 0 LLIR.I64Type) (LLIR.Argument 1 LLIR.I64Type)) (LLIR.Argument 2 LLIR.I64Type)),
-          ("flip", LLIR.Global [LLIR.FunctionType [LLIR.I64Type, LLIR.I64Type] LLIR.I64Type, LLIR.I64Type, LLIR.I64Type] $ LLIR.Call (LLIR.Argument 0 (LLIR.FunctionType [LLIR.I64Type, LLIR.I64Type] LLIR.I64Type)) [LLIR.Argument 2 LLIR.I64Type, LLIR.Argument 1 LLIR.I64Type] LLIR.I64Type)
+          ("addBoth", addBoth),
+          ("weirdAdd", weirdAdd),
+          ("main", main)
           ]
+        i64 = LLIR.I64Type
+        i64Toi64 = LLIR.FunctionType [i64] i64
+        addBoth = LLIR.Global [i64Toi64, i64Toi64, i64] $
+          LLIR.Binary Prim.Add
+            (LLIR.Call (LLIR.LocalReference 0 0 i64Toi64) [LLIR.LocalReference 0 2 i64] i64)
+            (LLIR.Call (LLIR.LocalReference 0 1 i64Toi64) [LLIR.LocalReference 0 2 i64] i64)
+        weirdAdd = LLIR.Global [i64, i64, i64] $
+          LLIR.Call (LLIR.GlobalReference "addBoth") [
+            LLIR.Lambda [i64] $ LLIR.Binary Prim.Add (LLIR.LocalReference 0 0 i64) $ LLIR.LocalReference 1 0 i64,
+            LLIR.Lambda [i64] $ LLIR.Binary Prim.Add (LLIR.LocalReference 0 0 i64) $ LLIR.LocalReference 1 1 i64,
+            LLIR.LocalReference 0 2 i64] i64
+        main = LLIR.Global [] $
+          LLIR.Call (LLIR.GlobalReference "weirdAdd") [LLIR.I64Literal 1, LLIR.I64Literal 2, LLIR.I64Literal 3] i64
         prog = Map.toList $ passes src
         mod = defaultModule {
           LLVM.AST.moduleName = "out",
@@ -31,4 +45,4 @@ main = do
           }
 
 passes :: LLIR.Globals -> LLIR.Globals
-passes = sfte
+passes = sfte . lowerLambdas

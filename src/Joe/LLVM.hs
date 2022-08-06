@@ -29,7 +29,7 @@ writeGlobal name func@(LLIR.Global params expr) = GlobalDefinition $ Global.func
           ret result
 
 writeExpression :: LLIR.Expression -> IRBuilder Operand
-writeExpression (LLIR.Argument idx t) = return $ Operand.LocalReference (llvmType t) (Name.mkName $ "param" ++ (show idx))
+writeExpression (LLIR.LocalReference 0 idx t) = return $ Operand.LocalReference (llvmType t) (Name.mkName $ "param" ++ (show idx))
 writeExpression (LLIR.I64Literal val) = return $ Constant.int64 $ fromIntegral val
 writeExpression (LLIR.Binary Prim.Add a1 a2) = do
   a1' <- writeExpression a1
@@ -45,6 +45,7 @@ writeExpression (LLIR.Call (LLIR.GlobalReference name) args _) = do
           Type.isVarArg = False
           }
         func = Operand.ConstantOperand $ Constant.GlobalReference functionType $ Name.mkName name
+writeExpression e = error $ "Unable to write expression " ++ show e
 
 llvmType :: LLIR.Type -> Type.Type
 llvmType LLIR.I64Type = Type.i64
