@@ -8,6 +8,7 @@ import qualified Joe.Prim as Prim
 import qualified Joe.LLIR as LLIR
 import qualified Joe.LLVM as LLVM
 import Joe.Passes.LowerLambdas (lowerLambdas)
+import Joe.Passes.ScopeElimination (eliminateScopes)
 import Joe.Passes.StaticFunctionTemplateElimination (sfte)
 import LLVM.AST (defaultModule)
 import qualified LLVM.AST
@@ -32,10 +33,13 @@ main = do
             (LLIR.Call (LLIR.LocalReference 0 0 i64Toi64) [LLIR.LocalReference 0 2 i64] i64)
             (LLIR.Call (LLIR.LocalReference 0 1 i64Toi64) [LLIR.LocalReference 0 2 i64] i64)
         weirdAdd = LLIR.Global [i64, i64, i64] $
-          LLIR.Call (LLIR.GlobalReference "addBoth") [
-            LLIR.Lambda [i64] $ LLIR.Binary Prim.Add (LLIR.LocalReference 0 0 i64) $ LLIR.LocalReference 1 0 i64,
-            LLIR.Lambda [i64] $ LLIR.Binary Prim.Add (LLIR.LocalReference 0 0 i64) $ LLIR.LocalReference 1 1 i64,
-            LLIR.LocalReference 0 2 i64] i64
+          LLIR.Scope [
+            LLIR.Lambda [i64] $ LLIR.Binary Prim.Add (LLIR.LocalReference 0 0 i64) $ LLIR.LocalReference 2 0 i64,
+            LLIR.Lambda [i64] $ LLIR.Binary Prim.Add (LLIR.LocalReference 0 0 i64) $ LLIR.LocalReference 2 1 i64
+          ] $ LLIR.Call (LLIR.GlobalReference "addBoth") [
+              LLIR.LocalReference 0 0 i64Toi64,
+              LLIR.LocalReference 0 1 i64Toi64,
+            LLIR.LocalReference 1 2 i64] i64
         main = LLIR.Global [] $
           LLIR.Call (LLIR.GlobalReference "weirdAdd") [LLIR.I64Literal 1, LLIR.I64Literal 2, LLIR.I64Literal 3] i64
         prog = Map.toList $ passes src
@@ -45,4 +49,4 @@ main = do
           }
 
 passes :: LLIR.Globals -> LLIR.Globals
-passes = sfte . lowerLambdas
+passes = sfte . lowerLambdas . eliminateScopes
