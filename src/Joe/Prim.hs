@@ -5,4 +5,4 @@ module Joe.Prim (
 data BinaryOperation = Add |
   Subtract |
   Multiply |
-  Divide deriving (Show)
+  Divide deriving (Eq, Show)

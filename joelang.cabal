@@ -75,6 +75,7 @@ test-suite joelang-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      StaticFunctionTemplateEliminationSpec
       Paths_joelang
   hs-source-dirs:
       test
@@ -82,6 +83,7 @@ test-suite joelang-test
   build-depends:
       base >=4.7 && <5
     , containers
+    , hspec
     , ilist
     , joelang
     , lens

@@ -31,12 +31,12 @@ data Expression = LocalReference Int Int Type |
   GlobalReference String |
   I64Literal Word64 |
   Lambda [Type] Expression |
-  Scope [Expression] Expression deriving (Show)
+  Scope [Expression] Expression deriving (Eq, Show)
 
 data Type = FunctionType [Type] Type |
-  I64Type deriving (Show)
+  I64Type deriving (Eq, Show)
 
-data Global = Global [Type] Expression deriving (Show)
+data Global = Global [Type] Expression deriving (Eq, Show)
 
 dataType :: Expression -> Type
 dataType (LocalReference _ _ t) = t
