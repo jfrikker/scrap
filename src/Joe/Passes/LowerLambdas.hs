@@ -18,17 +18,17 @@ openLambda (LLIR.Lambda args body) = do
   let shortClosed = map (\(i, j, _) -> (i, j)) closed
   let newBody = foldr (LLIR.mapExpressions . addArg) body shortClosed
   let newCallArgs = map (\(i, j, t) -> LLIR.LocalReference i j t) closed
-  return $ LLIR.Call (LLIR.Lambda newArgs newBody) newCallArgs $ LLIR.FunctionType args $ LLIR.dataType body
+  return $ LLIR.Call (LLIR.Lambda newArgs newBody) newCallArgs
 openLambda e = return e
 
 promoteLambdas :: LLIR.Globals -> LLIR.Globals
 promoteLambdas = runPass $ modifyExpressions promoteLambda
 
 promoteLambda :: LLIR.Expression -> PassM LLIR.Expression
-promoteLambda (LLIR.Lambda args body) = do
+promoteLambda e@(LLIR.Lambda args body) = do
   newName <- generateName "_lambda"
   upsertGlobal newName $ LLIR.Global args body
-  return $ LLIR.GlobalReference newName
+  return $ LLIR.GlobalReference newName $ LLIR.dataType e
 promoteLambda e = return e
 
 addArg :: (Int, Int) -> LLIR.Expression -> LLIR.Expression

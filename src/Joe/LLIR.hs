@@ -6,6 +6,7 @@ module Joe.LLIR (
   Expression(..),
   Global(..),
   Globals,
+  globalDataType,
   flattenExpressions,
   mangle,
   mangleType,
@@ -27,8 +28,8 @@ import qualified Joe.Prim as Prim
 
 data Expression = LocalReference Int Int Type |
   Binary Prim.BinaryOperation Expression Expression |
-  Call Expression [Expression] Type |
-  GlobalReference String |
+  Call Expression [Expression] |
+  GlobalReference String Type |
   I64Literal Word64 |
   Lambda [Type] Expression |
   Scope [Expression] Expression deriving (Eq, Show)
@@ -39,18 +40,26 @@ data Type = FunctionType [Type] Type |
 data Global = Global [Type] Expression deriving (Eq, Show)
 
 dataType :: Expression -> Type
-dataType (LocalReference _ _ t) = t
 dataType (Binary _ a1 _) = dataType a1
+dataType (Call f args)
+  | List.null newArgs = res
+  | otherwise = FunctionType newArgs res
+  where FunctionType typeArgs res = dataType f
+        newArgs = List.drop (length args) typeArgs
+dataType (GlobalReference _ t) = t
 dataType (I64Literal _) = I64Type
-dataType (Call _ _ t) = t
 dataType (Lambda args body) = FunctionType args $ dataType body
+dataType (LocalReference _ _ t) = t
 dataType e = error $ "Unable to compute data type " ++ show e
+
+globalDataType :: Global -> Type
+globalDataType (Global args body) = FunctionType args $ dataType body
 
 type Globals = Map String Global
 
 arguments :: Expression -> [Expression]
 arguments (Binary op a1 a2) = [a1, a2]
-arguments (Call f a _) = f : a
+arguments (Call f a) = f : a
 arguments (Lambda a b) = [b]
 arguments (Scope binds body) = body : binds
 arguments e = []
@@ -63,10 +72,10 @@ mapArgumentsM f (Binary op a1 a2) = do
   a1' <- f a1
   a2' <- f a2
   return $ Binary op a1' a2'
-mapArgumentsM f (Call f' a t) = do
+mapArgumentsM f (Call f' a) = do
   f'' <- f f'
   a' <- mapM f a
-  return $ Call f'' a' t
+  return $ Call f'' a'
 mapArgumentsM f (Lambda a b) = do
   b' <- f b
   return $ Lambda a b'

@@ -19,5 +19,5 @@ rug = runPass $ do
   forM_ toRemove removeGlobal
 
 referenced :: LLIR.Expression -> Maybe String
-referenced (LLIR.GlobalReference name) = Just name
+referenced (LLIR.GlobalReference name _) = Just name
 referenced _ = Nothing

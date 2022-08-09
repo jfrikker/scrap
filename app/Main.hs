@@ -21,7 +21,7 @@ main = do
   pPrint src
   pPrint prog
   IO.withFile "out.ll" IO.WriteMode $ \h -> TIO.hPutStrLn h $ ppllvm mod
-  where src = Map.fromList [("main", LLIR.Global [] $ LLIR.Call (LLIR.GlobalReference "increment") [LLIR.I64Literal 123] LLIR.I64Type),
+  where src = Map.fromList [("main", LLIR.Global [] $ LLIR.Call (LLIR.GlobalReference "increment" i64Toi64) [LLIR.I64Literal 123]),
           ("addBoth", addBoth),
           ("weirdAdd", weirdAdd),
           ("main", main)
@@ -30,18 +30,18 @@ main = do
         i64Toi64 = LLIR.FunctionType [i64] i64
         addBoth = LLIR.Global [i64Toi64, i64Toi64, i64] $
           LLIR.Binary Prim.Add
-            (LLIR.Call (LLIR.LocalReference 0 0 i64Toi64) [LLIR.LocalReference 0 2 i64] i64)
-            (LLIR.Call (LLIR.LocalReference 0 1 i64Toi64) [LLIR.LocalReference 0 2 i64] i64)
+            (LLIR.Call (LLIR.LocalReference 0 0 i64Toi64) [LLIR.LocalReference 0 2 i64])
+            (LLIR.Call (LLIR.LocalReference 0 1 i64Toi64) [LLIR.LocalReference 0 2 i64])
         weirdAdd = LLIR.Global [i64, i64, i64] $
           LLIR.Scope [
             LLIR.Lambda [i64] $ LLIR.Binary Prim.Add (LLIR.LocalReference 0 0 i64) $ LLIR.LocalReference 2 0 i64,
             LLIR.Lambda [i64] $ LLIR.Binary Prim.Add (LLIR.LocalReference 0 0 i64) $ LLIR.LocalReference 2 1 i64
-          ] $ LLIR.Call (LLIR.GlobalReference "addBoth") [
+          ] $ LLIR.Call (LLIR.GlobalReference "addBoth" $ LLIR.FunctionType [i64Toi64, i64Toi64, i64] i64) [
               LLIR.LocalReference 0 0 i64Toi64,
               LLIR.LocalReference 0 1 i64Toi64,
-            LLIR.LocalReference 1 2 i64] i64
+            LLIR.LocalReference 1 2 i64]
         main = LLIR.Global [] $
-          LLIR.Call (LLIR.GlobalReference "weirdAdd") [LLIR.I64Literal 1, LLIR.I64Literal 2, LLIR.I64Literal 3] i64
+          LLIR.Call (LLIR.GlobalReference "weirdAdd" $ LLIR.FunctionType [i64, i64, i64] i64) [LLIR.I64Literal 1, LLIR.I64Literal 2, LLIR.I64Literal 3]
         prog = Map.toList $ passes src
         mod = defaultModule {
           LLVM.AST.moduleName = "out",

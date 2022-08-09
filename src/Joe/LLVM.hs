@@ -35,7 +35,7 @@ writeExpression (LLIR.Binary Prim.Add a1 a2) = do
   a1' <- writeExpression a1
   a2' <- writeExpression a2
   add a1' a2'
-writeExpression (LLIR.Call (LLIR.GlobalReference name) args _) = do
+writeExpression (LLIR.Call (LLIR.GlobalReference name _) args) = do
   args' <- mapM (\a -> writeExpression a >>= \a' -> return (a', [])) args
   call func args'
   where argTypes = map (\a -> (llvmType $ LLIR.dataType a, [])) args

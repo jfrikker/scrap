@@ -18,7 +18,7 @@ lambdaScope (LLIR.Scope binds body) = LLIR.Scope binds' body'
   where (binds', body') = foldl inner ([], body) binds
         inner (a, b) e@(LLIR.Lambda _ _) = (a ++ [e], b)
         inner (a, b) e = (a ++ [LLIR.Lambda [] (addScopeLayer e)], replaceBind (0, length a) rep body)
-          where rep = LLIR.Call (LLIR.LocalReference 0 (length a) (LLIR.FunctionType [] (LLIR.dataType e))) [] (LLIR.dataType e)
+          where rep = LLIR.Call (LLIR.LocalReference 0 (length a) (LLIR.FunctionType [] (LLIR.dataType e))) []
 lambdaScope e = e
 
 replaceBind :: (Int, Int) -> LLIR.Expression -> LLIR.Expression -> LLIR.Expression
@@ -59,7 +59,7 @@ addBindArgs closedOver = map inner . zip closedOver
 openBindCalls :: [[(Int, Int, LLIR.Type)]] -> ([LLIR.Expression], LLIR.Expression) -> Int -> ([LLIR.Expression], LLIR.Expression)
 openBindCalls closedOver (binds, body) idx = (map replace binds, replace body)
   where replace = replaceBind (0, idx) rep
-        rep = LLIR.Call (LLIR.LocalReference 0 idx $ LLIR.dataType $ binds !! idx) (map (\(i, j, t) -> LLIR.LocalReference i j t) $ closedOver !! idx) $ LLIR.dataType $ binds !! idx
+        rep = LLIR.Call (LLIR.LocalReference 0 idx $ LLIR.dataType $ binds !! idx) (map (\(i, j, t) -> LLIR.LocalReference i j t) $ closedOver !! idx)
         
 closedOver :: [LLIR.Expression] -> Int -> [(Int, Int, LLIR.Type)]
 closedOver binds idx = LLIR.uniqueBy (\(i, j, _) -> (i, j)) $
@@ -83,10 +83,10 @@ globalizeScopes :: LLIR.Globals -> LLIR.Globals
 globalizeScopes = runPass $ modifyExpressions inner
   where inner (LLIR.Scope binds body) = do
           names <- mapM (\_ -> generateName "_lambda") binds
-          let withIdx = zip names [0..]
-          let binds' = map (\bind -> foldl (\b' (name, idx) -> replaceBind (0, idx) (LLIR.GlobalReference name) b') bind withIdx) binds
+          let withIdx = zip3 binds names [0..]
+          let binds' = map (\bind -> foldl (\b' (innerBind, name, idx) -> replaceBind (0, idx) (LLIR.GlobalReference name (LLIR.dataType innerBind)) b') bind withIdx) binds
           let named = zip names binds'
           mapM_ (\(name, (LLIR.Lambda args body)) -> upsertGlobal name $ LLIR.Global args body) named
-          let body' = foldl (\b (name, idx) -> replaceBind (0, idx) (LLIR.GlobalReference name) b) body withIdx
+          let body' = foldl (\b (innerBind, name, idx) -> replaceBind (0, idx) (LLIR.GlobalReference name (LLIR.dataType innerBind)) b) body withIdx
           return $ removeScopeLayer body'
         inner e = return e
