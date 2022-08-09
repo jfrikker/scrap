@@ -117,6 +117,6 @@ spec = do
                        (LLIR.LocalReference 0 0 i64)
                        (LLIR.LocalReference 0 1 i64)),
                      ("main", LLIR.Global [] $ LLIR.Call (LLIR.GlobalReference "add" $ LLIR.FunctionType [i64, i64] i64) [
-                       LLIR.GlobalReference "one" $ LLIR.FunctionType [] i64,
+                       LLIR.Call (LLIR.GlobalReference "one" $ LLIR.FunctionType [] i64) [],
                        LLIR.I64Literal 2])]
       sfte before `shouldBe` before

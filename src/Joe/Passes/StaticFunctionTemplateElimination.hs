@@ -24,7 +24,7 @@ handleExpression e = return e
 
 maybeExpandArg :: (LLIR.Expression, Int, LLIR.Global, String) -> ([LLIR.Expression], LLIR.Global, String, Bool)
 maybeExpandArg (a@(LLIR.GlobalReference f _), i, glob, name) = ([], LLIR.replaceArg i [] a glob, "_s" ++ LLIR.prependLength f ++ name, True)
-maybeExpandArg (a@(LLIR.Call f@(LLIR.GlobalReference fName t@(LLIR.FunctionType _ _)) args), i, glob, name) = (args, glob', newName, True)
+maybeExpandArg (a@(LLIR.Call f@(LLIR.GlobalReference fName t@(LLIR.FunctionType _ (LLIR.FunctionType (_:_) _))) args), i, glob, name) = (args, glob', newName, True)
   where argTypes = map LLIR.dataType args
         rep = LLIR.Call f (map (\(idx, a) -> LLIR.LocalReference 0 (i + idx) (LLIR.dataType a)) $ List.zip [0..] args)
         glob' = LLIR.replaceArg i argTypes rep glob
