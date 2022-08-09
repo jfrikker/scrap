@@ -8,6 +8,7 @@ module Joe.LLIR (
   Globals,
   globalDataType,
   flattenExpressions,
+  isFunctionType,
   mangle,
   mangleType,
   mapArguments,
@@ -51,6 +52,10 @@ dataType (I64Literal _) = I64Type
 dataType (Lambda args body) = FunctionType args $ dataType body
 dataType (LocalReference _ _ t) = t
 dataType e = error $ "Unable to compute data type " ++ show e
+
+isFunctionType :: Type -> Bool
+isFunctionType (FunctionType _ _) = True
+isFunctionType _ = False
 
 globalDataType :: Global -> Type
 globalDataType (Global args body) = FunctionType args $ dataType body

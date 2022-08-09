@@ -110,6 +110,36 @@ spec = do
                        (LLIR.Call (LLIR.GlobalReference "_s4add2_s4add1weirdAdd" $ LLIR.FunctionType [i64] i64) [
                          LLIR.I64Literal 1]))]
       sfte before `shouldBe` expected
+    it "handles partial function application in arguments" $ do
+      let before = Map.fromList [
+                     ("add", LLIR.Global [i64, i64] $ LLIR.Binary Prim.Add
+                       (LLIR.LocalReference 0 0 i64)
+                       (LLIR.LocalReference 0 1 i64)),
+                     ("weirdAdd", LLIR.Global [i64, LLIR.FunctionType [i64] i64] $
+                       LLIR.Binary Prim.Add
+                         (LLIR.LocalReference 0 0 i64)
+                         (LLIR.Call (LLIR.LocalReference 0 1 $ LLIR.FunctionType [i64] i64) [
+                           LLIR.LocalReference 0 0 i64])),
+                     ("main", LLIR.Global [] $
+                       (LLIR.Call (LLIR.GlobalReference "weirdAdd" $ LLIR.FunctionType [i64, LLIR.FunctionType [i64] i64] i64) [
+                         LLIR.I64Literal 1,
+                         (LLIR.Call (LLIR.GlobalReference "add" $ LLIR.FunctionType [i64, i64] i64) [
+                           LLIR.I64Literal 2])]))]
+      let expected = Map.fromList [
+                     ("add", LLIR.Global [i64, i64] $ LLIR.Binary Prim.Add
+                       (LLIR.LocalReference 0 0 i64)
+                       (LLIR.LocalReference 0 1 i64)),
+                     ("_sp1f3addweirdAdd", LLIR.Global [i64, i64] $ 
+                       LLIR.Binary Prim.Add
+                         (LLIR.LocalReference 0 0 i64)
+                         (LLIR.Call (LLIR.GlobalReference "add" $ LLIR.FunctionType [i64, i64] i64) [
+                           LLIR.LocalReference 0 1 i64,
+                           LLIR.LocalReference 0 0 i64])),
+                     ("main", LLIR.Global [] $
+                       (LLIR.Call (LLIR.GlobalReference "_sp1f3addweirdAdd" $ LLIR.FunctionType [i64, i64] i64) [
+                         LLIR.I64Literal 1,
+                         LLIR.I64Literal 2]))]
+      sfte before `shouldBe` expected
     it "doesn't inline a global constant argument" $ do
       let before = Map.fromList [
                      ("one", LLIR.Global [] $ LLIR.I64Literal 1),
@@ -119,4 +149,16 @@ spec = do
                      ("main", LLIR.Global [] $ LLIR.Call (LLIR.GlobalReference "add" $ LLIR.FunctionType [i64, i64] i64) [
                        LLIR.Call (LLIR.GlobalReference "one" $ LLIR.FunctionType [] i64) [],
                        LLIR.I64Literal 2])]
+      sfte before `shouldBe` before
+    it "doesn't inline a non-partial application" $ do
+      let before = Map.fromList [
+                     ("add", LLIR.Global [i64, i64] $ LLIR.Binary Prim.Add
+                       (LLIR.LocalReference 0 0 i64)
+                       (LLIR.LocalReference 0 1 i64)),
+                     ("main", LLIR.Global [] $
+                       (LLIR.Call (LLIR.GlobalReference "add" $ LLIR.FunctionType [i64, i64] i64) [
+                         LLIR.I64Literal 1,
+                         (LLIR.Call (LLIR.GlobalReference "add" $ LLIR.FunctionType [i64, i64] i64) [
+                           LLIR.I64Literal 2,
+                           LLIR.I64Literal 3])]))]
       sfte before `shouldBe` before
