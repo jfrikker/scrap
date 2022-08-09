@@ -12,7 +12,6 @@ sfte :: LLIR.Globals -> LLIR.Globals
 sfte globs = rug $ runPass (modifyExpressions handleExpression) globs
 
 handleExpression :: LLIR.Expression -> PassM LLIR.Expression
-handleExpression (LLIR.Call (LLIR.Call (LLIR.GlobalReference name) a1 _) a2 t) = handleExpression $ LLIR.Call (LLIR.GlobalReference name) (a1 ++ a2) t
 handleExpression e@(LLIR.Call (LLIR.GlobalReference name) args t) = do
     template <- findGlobal name
     let (newArgs, rendered, renderedName, changed) = foldl (\(newA, newG, newN, c) a -> let (a', g', n', c') = maybeExpandArg (a, length newA, newG, newN) in (newA ++ a', g', n', c || c')) ([], template, name, False) args
