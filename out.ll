@@ -5,7 +5,8 @@
 
 
 define external ccc  i64 @add(i64  %i1, i64  %i2)    {
-  ret i64 %i1 
+  %1 = add   i64 %i1, %i2 
+  ret i64 %1 
 }
 
 

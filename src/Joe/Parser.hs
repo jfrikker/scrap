@@ -7,8 +7,10 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Joe.LLIR as LLIR
+import qualified Joe.Prim as Prim
 import Text.Parsec((<|>), choice, many, many1, option, sepBy1)
 import Text.Parsec.Char (alphaNum, char, digit, lower, oneOf, spaces, string, upper)
+import Text.Parsec.Expr (Assoc(AssocLeft), buildExpressionParser, Operator(Infix), OperatorTable)
 import Text.Parsec.Text (Parser)
 import Text.Parsec.Token (makeTokenParser, GenLanguageDef(..), GenTokenParser)
 
@@ -66,8 +68,20 @@ functionDef = do
   spaces
   return $ (name, LLIR.Global args t body)
 
+exprTable :: OperatorTable Text () Identity LLIR.Expression
+exprTable = [
+  [binary '+' Prim.Add AssocLeft]
+  ]
+
+binary :: Char -> Prim.BinaryOperation -> Assoc -> Operator Text () Identity LLIR.Expression
+binary c op = Infix p
+  where p = do
+          char c
+          spaces
+          return $ LLIR.Binary op
+
 expression :: Parser LLIR.Expression
-expression = call
+expression = buildExpressionParser exprTable call
 
 call :: Parser LLIR.Expression
 call = do
