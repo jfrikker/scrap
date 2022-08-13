@@ -34,6 +34,7 @@ data Expression = LocalReference String Type |
   GlobalReference String Type |
   I64Literal Word64 |
   Lambda [(String, Type)] Expression |
+  Reference String |
   Scope String Expression Expression deriving (Eq, Show)
 
 data Type = FunctionType [Type] Type |

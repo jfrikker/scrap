@@ -6,7 +6,7 @@ import Data.Functor.Identity (Identity)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Joe.LLIR as LLIR
-import Text.Parsec((<|>), many, many1, option, sepBy1)
+import Text.Parsec((<|>), choice, many, many1, option, sepBy1)
 import Text.Parsec.Char (alphaNum, char, digit, lower, oneOf, spaces, string, upper)
 import Text.Parsec.Text (Parser)
 import Text.Parsec.Token (makeTokenParser, GenLanguageDef(..), GenTokenParser)
@@ -69,7 +69,10 @@ expression :: Parser LLIR.Expression
 expression = atom
 
 atom :: Parser LLIR.Expression
-atom = i64Literal
+atom = choice [
+  scopeRef,
+  i64Literal
+  ]
 
 i64Literal :: Parser LLIR.Expression
 i64Literal = do
@@ -77,3 +80,6 @@ i64Literal = do
   string "i64"
   spaces
   return $ LLIR.I64Literal $ read num
+
+scopeRef :: Parser LLIR.Expression
+scopeRef = identifier >>= return . LLIR.Reference
