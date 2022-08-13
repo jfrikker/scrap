@@ -97,6 +97,7 @@ call = do
 
 atom :: Parser LLIR.Expression
 atom = choice [
+  parens,
   scopeRef,
   i64Literal
   ]
@@ -110,3 +111,12 @@ i64Literal = do
 
 scopeRef :: Parser LLIR.Expression
 scopeRef = identifier >>= return . LLIR.Reference
+
+parens :: Parser LLIR.Expression
+parens = do
+  char '('
+  spaces
+  e <- expression
+  char ')'
+  spaces
+  return e
