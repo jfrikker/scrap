@@ -27,6 +27,7 @@ dependencies:
 - llvm-hs-pure
 - monad-loops
 - mtl
+- parsec
 - pretty-simple
 - text
 

@@ -37,7 +37,8 @@ data Expression = LocalReference String Type |
   Scope String Expression Expression deriving (Eq, Show)
 
 data Type = FunctionType [Type] Type |
-  I64Type deriving (Eq, Show)
+  I64Type |
+  Unknown deriving (Eq, Show)
 
 data Global = Global [(String, Type)] Expression deriving (Eq, Show)
 
