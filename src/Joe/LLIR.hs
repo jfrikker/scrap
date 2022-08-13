@@ -39,7 +39,7 @@ data Expression = LocalReference String Type |
 
 data Type = FunctionType [Type] Type |
   I64Type |
-  Unknown deriving (Eq, Show)
+  UnknownType deriving (Eq, Show)
 
 data Global = Global [(String, Type)] Type Expression deriving (Eq, Show)
 

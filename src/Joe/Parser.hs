@@ -19,11 +19,8 @@ import Debug.Trace (traceShowId)
 moduleParser :: Parser LLIR.Globals
 moduleParser = do
   spaces
-  globs <- many global
+  globs <- many functionDef
   return $ Map.fromList globs
-
-global :: Parser (String, LLIR.Global)
-global = choice [try constantDef, functionDef]
 
 identifier :: Parser String
 identifier = do
@@ -82,22 +79,31 @@ constantDef = do
 functionDef :: Parser (String, LLIR.Global)
 functionDef = do
   name <- identifier
-  char('(')
-  spaces
-  args <- (flip sepBy1) (char ',' >> spaces) $ do
-    argName <- identifier
-    argType <- typeQualifier
-    return (argName, argType)
-  char(')')
-  spaces
-  string "->"
-  spaces
-  t <- nonFunctionType
-  spaces
+  (args, t) <- choice [try constantDecl, functionDecl]
   char ('=')
   spaces
   body <- assignmentBody
   return $ (name, LLIR.Global args t body)
+  where constantDecl = do
+          char(':')
+          spaces
+          t <- nonFunctionType
+          spaces
+          return ([], t)
+        functionDecl = do
+          char('(')
+          spaces
+          args <- (flip sepBy1) (char ',' >> spaces) $ do
+            argName <- identifier
+            argType <- typeQualifier
+            return (argName, argType)
+          char(')')
+          spaces
+          string "->"
+          spaces
+          t <- nonFunctionType
+          spaces
+          return (args, t)
 
 assignmentBody :: Parser LLIR.Expression
 assignmentBody = block <|> (do
@@ -137,9 +143,22 @@ atom :: Parser LLIR.Expression
 atom = choice [
   parens,
   block,
+  lambda,
   scopeRef,
   i64Literal
   ]
+
+lambda :: Parser LLIR.Expression
+lambda = do
+  string "\\("
+  spaces
+  args <- sepBy1 identifier $ char ',' >> spaces
+  char ')'
+  spaces
+  char '='
+  spaces
+  body <- expression
+  return $ LLIR.Lambda (map (\a -> (a, LLIR.UnknownType)) args) body
 
 i64Literal :: Parser LLIR.Expression
 i64Literal = do
