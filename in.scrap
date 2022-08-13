@@ -2,7 +2,9 @@
 
 main: I64 = flip(add, 1i64, 2i64);
 
-flip(f: (I64, I64): I64, a1: I64, a2: I64): I64 = f(a2, a1);
+flip(f: (I64, I64) -> I64, a1: I64, a2: I64) -> I64 = f(a2, a1);
 
-add(i1: I64, i2: I64): I64 = i1 + i2;
+add(i1: I64, i2: I64) -> I64 = i1 + i2;
+
+flip2(f: (I64, I64) -> I64, a1: I64, a2: I64) -> I64 = flip(f, a1, a2);
 

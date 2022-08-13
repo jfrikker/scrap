@@ -19,8 +19,11 @@ import Debug.Trace (traceShowId)
 moduleParser :: Parser LLIR.Globals
 moduleParser = do
   spaces
-  globs <- many functionDef
+  globs <- many global
   return $ Map.fromList globs
+
+global :: Parser (String, LLIR.Global)
+global = choice [try constantDef, functionDef]
 
 identifier :: Parser String
 identifier = do
@@ -37,11 +40,7 @@ typeIdentifier = do
   return $ first : rest
 
 dataType :: Parser LLIR.Type
-dataType = functionType <|> do
-  t <- typeIdentifier
-  case t of
-    "I64" -> return LLIR.I64Type
-    otherwise -> fail $ "Unknown type " ++ t
+dataType = functionType <|> nonFunctionType
 
 functionType :: Parser LLIR.Type
 functionType = do
@@ -50,8 +49,17 @@ functionType = do
   args <- sepBy1 dataType $ char ',' >> spaces
   char ')'
   spaces
-  retType <- typeQualifier
+  string "->"
+  spaces
+  retType <- nonFunctionType
   return $ LLIR.FunctionType args retType
+
+nonFunctionType :: Parser LLIR.Type
+nonFunctionType = do
+  t <- typeIdentifier
+  case t of
+    "I64" -> return LLIR.I64Type
+    otherwise -> fail $ "Unknown type " ++ t
 
 typeQualifier :: Parser LLIR.Type
 typeQualifier = do
@@ -59,20 +67,33 @@ typeQualifier = do
   spaces
   dataType
 
+constantDef :: Parser (String, LLIR.Global)
+constantDef = do
+  name <- identifier
+  char(':')
+  spaces
+  t <- nonFunctionType
+  spaces
+  char ('=')
+  spaces
+  body <- assignmentBody
+  return $ (name, LLIR.Global [] t body)
+
 functionDef :: Parser (String, LLIR.Global)
 functionDef = do
   name <- identifier
-  args <- option [] $ do
-    char('(')
-    spaces
-    a <- (flip sepBy1) (char ',' >> spaces) $ do
-      argName <- identifier
-      argType <- typeQualifier
-      return (argName, argType)
-    char(')')
-    spaces
-    return a
-  t <- typeQualifier
+  char('(')
+  spaces
+  args <- (flip sepBy1) (char ',' >> spaces) $ do
+    argName <- identifier
+    argType <- typeQualifier
+    return (argName, argType)
+  char(')')
+  spaces
+  string "->"
+  spaces
+  t <- nonFunctionType
+  spaces
   char ('=')
   spaces
   body <- assignmentBody
