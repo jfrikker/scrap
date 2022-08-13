@@ -1,13 +1,8 @@
 
 
-main: I64 = add(999i64, 123i64);
+main: I64 = flip(add, 1i64, 2i64);
 
-add(i1: I64, i2: I64): I64 = {
-  first = i2 + i1;
-  second = {
-    third = first + 1i64;
-    i2 + third
-  }
-  i1 + first + second
-}
+flip(f: (I64, I64): I64, a1: I64, a2: I64): I64 = f(a2, a1);
+
+add(i1: I64, i2: I64): I64 = i1 + i2;
 

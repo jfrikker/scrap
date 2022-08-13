@@ -37,11 +37,21 @@ typeIdentifier = do
   return $ first : rest
 
 dataType :: Parser LLIR.Type
-dataType = do
+dataType = functionType <|> do
   t <- typeIdentifier
   case t of
     "I64" -> return LLIR.I64Type
     otherwise -> fail $ "Unknown type " ++ t
+
+functionType :: Parser LLIR.Type
+functionType = do
+  char '('
+  spaces
+  args <- sepBy1 dataType $ char ',' >> spaces
+  char ')'
+  spaces
+  retType <- typeQualifier
+  return $ LLIR.FunctionType args retType
 
 typeQualifier :: Parser LLIR.Type
 typeQualifier = do
