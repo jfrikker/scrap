@@ -49,7 +49,7 @@ findGlobal :: String -> PassM LLIR.Global
 findGlobal name = PassM $ uses (globals.at name) Maybe.fromJust
 
 upsertGlobal :: String -> LLIR.Global -> PassM ()
-upsertGlobal name glob@(LLIR.Global args _) = PassM $ globals.at name .= Just glob
+upsertGlobal name glob = PassM $ globals.at name .= Just glob
 
 removeGlobal :: String -> PassM ()
 removeGlobal name = PassM $ globals.at name .= Nothing
@@ -64,10 +64,10 @@ modifyGlobals f = do
           forM (Map.toList gbls) modifyGlobal
           after <- PassM $ use $ globals
           return $ Map.difference (Map.difference after before) gbls
-        modifyGlobal g@(name, LLIR.Global args _) = do
+        modifyGlobal g@(name, LLIR.Global args ret _) = do
           newBody <- f g
-          PassM $ globals.at name .= (Just $ LLIR.Global args newBody)
+          PassM $ globals.at name .= (Just $ LLIR.Global args ret newBody)
     
 modifyExpressions :: (LLIR.Expression -> PassM LLIR.Expression) -> PassM ()
 modifyExpressions f = modifyGlobals inner
-  where inner (_, LLIR.Global _ body) = LLIR.mapExpressionsM f body
+  where inner (_, LLIR.Global _ _ body) = LLIR.mapExpressionsM f body

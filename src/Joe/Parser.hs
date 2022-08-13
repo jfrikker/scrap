@@ -3,6 +3,7 @@ module Joe.Parser (
 ) where
 
 import Data.Functor.Identity (Identity)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Joe.LLIR as LLIR
@@ -63,10 +64,22 @@ functionDef = do
   body <- expression
   char(';')
   spaces
-  return $ (name, LLIR.Global args body)
+  return $ (name, LLIR.Global args t body)
 
 expression :: Parser LLIR.Expression
-expression = atom
+expression = call
+
+call :: Parser LLIR.Expression
+call = do
+  f <- atom
+  calls <- many $ do
+    char '('
+    spaces
+    args <- sepBy1 expression (char ',' >> spaces)
+    char ')'
+    spaces
+    return args
+  return $ List.foldl LLIR.Call f calls
 
 atom :: Parser LLIR.Expression
 atom = choice [

@@ -41,7 +41,7 @@ data Type = FunctionType [Type] Type |
   I64Type |
   Unknown deriving (Eq, Show)
 
-data Global = Global [(String, Type)] Expression deriving (Eq, Show)
+data Global = Global [(String, Type)] Type Expression deriving (Eq, Show)
 
 dataType :: Expression -> Type
 dataType (Binary _ a1 _) = dataType a1
@@ -61,7 +61,7 @@ isFunctionType (FunctionType _ _) = True
 isFunctionType _ = False
 
 globalDataType :: Global -> Type
-globalDataType (Global args body) = FunctionType (map snd args) $ dataType body
+globalDataType (Global args res _) = FunctionType (map snd args) res
 
 type Globals = Map String Global
 
@@ -107,7 +107,7 @@ flattenPaths = inner []
   where inner p e = (e : p) : List.concatMap (inner (e : p)) (arguments e)
 
 replaceArg :: String -> [(String, Type)] -> Expression -> Global -> Global
-replaceArg i newArgs rep (Global args body) = Global replacedArgs $ mapExpressions inner body
+replaceArg i newArgs rep (Global args res body) = Global replacedArgs res $ mapExpressions inner body
   where inner e@(LocalReference n t)
           | n == i = rep
           | otherwise = e

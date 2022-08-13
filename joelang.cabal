@@ -31,6 +31,7 @@ library
       Joe.Passes.LowerLambdas
       Joe.Passes.Monad
       Joe.Passes.RemoveUnusedGlobals
+      Joe.Passes.ResolveReferences
       Joe.Passes.ScopeElimination
       Joe.Passes.StaticFunctionTemplateElimination
       Joe.Prim

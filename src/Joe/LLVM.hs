@@ -16,10 +16,10 @@ import LLVM.IRBuilder
 import qualified LLVM.IRBuilder.Constant as Constant
 
 writeGlobal :: String -> LLIR.Global -> Definition
-writeGlobal name func@(LLIR.Global params expr) = GlobalDefinition $ Global.functionDefaults {
+writeGlobal name func@(LLIR.Global params returnType expr) = GlobalDefinition $ Global.functionDefaults {
   Global.name = name',
   Global.parameters = (params', False),
-  Global.returnType = llvmType $ LLIR.dataType expr,
+  Global.returnType = llvmType returnType,
   Global.basicBlocks = body
   }
   where name' = Name.mkName name

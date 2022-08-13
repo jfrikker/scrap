@@ -9,6 +9,7 @@ import qualified Joe.LLIR as LLIR
 import qualified Joe.LLVM as LLVM
 import Joe.Parser (moduleParser)
 import Joe.Passes.LowerLambdas (lowerLambdas)
+import Joe.Passes.ResolveReferences (resolveReferences)
 import Joe.Passes.ScopeElimination (eliminateScopes)
 import Joe.Passes.StaticFunctionTemplateElimination (sfte)
 import LLVM.AST (defaultModule)
@@ -32,4 +33,4 @@ main = do
   IO.withFile "out.ll" IO.WriteMode $ \h -> TIO.hPutStrLn h $ ppllvm mod
 
 passes :: LLIR.Globals -> LLIR.Globals
-passes = sfte . eliminateScopes . lowerLambdas
+passes = sfte . eliminateScopes . lowerLambdas . resolveReferences

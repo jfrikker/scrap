@@ -13,7 +13,7 @@ import Joe.Passes.Monad (allGlobals, removeGlobal, PassM, runPass)
 rug :: LLIR.Globals -> LLIR.Globals
 rug = runPass $ do
   globs <- allGlobals
-  let refs = Set.fromList $ concatMap (\(_, LLIR.Global _ body) -> Maybe.catMaybes $ map referenced $ LLIR.flattenExpressions body) globs
+  let refs = Set.fromList $ concatMap (\(_, LLIR.Global _ _ body) -> Maybe.catMaybes $ map referenced $ LLIR.flattenExpressions body) globs
   let names = Set.fromList $ map fst globs
   let toRemove = Set.difference names $ Set.insert "main" refs
   forM_ toRemove removeGlobal

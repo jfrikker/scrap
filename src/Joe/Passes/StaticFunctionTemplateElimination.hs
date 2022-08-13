@@ -10,7 +10,7 @@ import Joe.Passes.Monad (PassM, findGlobal, modifyExpressions, runPass, upsertGl
 import Joe.Passes.RemoveUnusedGlobals (rug)
 
 sfte :: LLIR.Globals -> LLIR.Globals
-sfte globs = rug $ runPass (modifyExpressions handleExpression) globs
+sfte = rug . runPass (modifyExpressions handleExpression)
 
 handleExpression :: LLIR.Expression -> PassM LLIR.Expression
 handleExpression (LLIR.Call (LLIR.Call g@(LLIR.GlobalReference _ _) a1) a2) = handleExpression $ LLIR.Call g (a1 ++ a2)
@@ -25,10 +25,10 @@ handleExpression e@(LLIR.Call (LLIR.GlobalReference name t) args) = do
 handleExpression e = return e
 
 maybeExpandArg :: (LLIR.Expression, Int, LLIR.Global, String) -> ([LLIR.Expression], LLIR.Global, String, Bool)
-maybeExpandArg (a@(LLIR.GlobalReference f _), i, glob@(LLIR.Global existingArgs _), name) = ([], LLIR.replaceArg argName [] a glob, "_s" ++ LLIR.prependLength f ++ name, True)
+maybeExpandArg (a@(LLIR.GlobalReference f _), i, glob@(LLIR.Global existingArgs retType _), name) = ([], LLIR.replaceArg argName [] a glob, "_s" ++ LLIR.prependLength f ++ name, True)
   where
     (argName, _) = existingArgs !! i
-maybeExpandArg (a@(LLIR.Call f@(LLIR.GlobalReference fName t) args), i, glob@(LLIR.Global existingArgs existingBody), name)
+maybeExpandArg (a@(LLIR.Call f@(LLIR.GlobalReference fName t) args), i, glob@(LLIR.Global existingArgs retType existingBody), name)
   | LLIR.isFunctionType (LLIR.dataType a) = (args, glob', newName, True)
   | otherwise = ([a], glob, name, False)
   where

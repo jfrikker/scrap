@@ -28,6 +28,6 @@ promoteLambdas = runPass $ modifyExpressions promoteLambda
 promoteLambda :: LLIR.Expression -> PassM LLIR.Expression
 promoteLambda e@(LLIR.Lambda args body) = do
   newName <- generateName "_lambda"
-  upsertGlobal newName $ LLIR.Global args body
+  upsertGlobal newName $ LLIR.Global args (LLIR.dataType body) body
   return $ LLIR.GlobalReference newName $ LLIR.dataType e
 promoteLambda e = return e
