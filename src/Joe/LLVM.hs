@@ -2,7 +2,7 @@ module Joe.LLVM (
   writeGlobal
 ) where
 
-import qualified Data.List.Index as List
+import qualified Data.List as List
 import qualified Joe.LLIR as LLIR
 import qualified Joe.Prim as Prim
 import LLVM.AST (Definition(GlobalDefinition))
@@ -23,13 +23,13 @@ writeGlobal name func@(LLIR.Global params expr) = GlobalDefinition $ Global.func
   Global.basicBlocks = body
   }
   where name' = Name.mkName name
-        params' = List.imap (\i t -> Global.Parameter (llvmType t) (Name.mkName $ "param" ++ (show i)) []) params
+        params' = List.map (\(name, t) -> Global.Parameter (llvmType t) (Name.mkName $ name) []) params
         body = execIRBuilder emptyIRBuilder $ do
           result <- writeExpression expr
           ret result
 
 writeExpression :: LLIR.Expression -> IRBuilder Operand
-writeExpression (LLIR.LocalReference 0 idx t) = return $ Operand.LocalReference (llvmType t) (Name.mkName $ "param" ++ (show idx))
+writeExpression (LLIR.LocalReference name t) = return $ Operand.LocalReference (llvmType t) (Name.mkName name)
 writeExpression (LLIR.I64Literal val) = return $ Constant.int64 $ fromIntegral val
 writeExpression (LLIR.Binary Prim.Add a1 a2) = do
   a1' <- writeExpression a1
@@ -49,3 +49,4 @@ writeExpression e = error $ "Unable to write expression " ++ show e
 
 llvmType :: LLIR.Type -> Type.Type
 llvmType LLIR.I64Type = Type.i64
+llvmType t = error $ "Unable to compute llvm data type for " ++ show t

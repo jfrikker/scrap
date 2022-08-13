@@ -8,6 +8,7 @@ module Joe.LLIR (
   Globals,
   globalDataType,
   flattenExpressions,
+  inlineBind,
   isFunctionType,
   mangle,
   mangleType,
@@ -27,18 +28,18 @@ import Data.Functor.Identity (runIdentity)
 import Data.Word (Word8, Word16, Word32, Word64)
 import qualified Joe.Prim as Prim
 
-data Expression = LocalReference Int Int Type |
+data Expression = LocalReference String Type |
   Binary Prim.BinaryOperation Expression Expression |
   Call Expression [Expression] |
   GlobalReference String Type |
   I64Literal Word64 |
-  Lambda [Type] Expression |
-  Scope [Expression] Expression deriving (Eq, Show)
+  Lambda [(String, Type)] Expression |
+  Scope String Expression Expression deriving (Eq, Show)
 
 data Type = FunctionType [Type] Type |
   I64Type deriving (Eq, Show)
 
-data Global = Global [Type] Expression deriving (Eq, Show)
+data Global = Global [(String, Type)] Expression deriving (Eq, Show)
 
 dataType :: Expression -> Type
 dataType (Binary _ a1 _) = dataType a1
@@ -49,8 +50,8 @@ dataType (Call f args)
         newArgs = List.drop (length args) typeArgs
 dataType (GlobalReference _ t) = t
 dataType (I64Literal _) = I64Type
-dataType (Lambda args body) = FunctionType args $ dataType body
-dataType (LocalReference _ _ t) = t
+dataType (Lambda args body) = FunctionType (map snd args) $ dataType body
+dataType (LocalReference _ t) = t
 dataType e = error $ "Unable to compute data type " ++ show e
 
 isFunctionType :: Type -> Bool
@@ -58,7 +59,7 @@ isFunctionType (FunctionType _ _) = True
 isFunctionType _ = False
 
 globalDataType :: Global -> Type
-globalDataType (Global args body) = FunctionType args $ dataType body
+globalDataType (Global args body) = FunctionType (map snd args) $ dataType body
 
 type Globals = Map String Global
 
@@ -66,7 +67,7 @@ arguments :: Expression -> [Expression]
 arguments (Binary op a1 a2) = [a1, a2]
 arguments (Call f a) = f : a
 arguments (Lambda a b) = [b]
-arguments (Scope binds body) = body : binds
+arguments (Scope _ bind body) = [bind, body]
 arguments e = []
 
 mapArguments :: (Expression -> Expression) -> Expression -> Expression
@@ -84,10 +85,10 @@ mapArgumentsM f (Call f' a) = do
 mapArgumentsM f (Lambda a b) = do
   b' <- f b
   return $ Lambda a b'
-mapArgumentsM f (Scope binds body) = do
-  binds' <- mapM f binds
+mapArgumentsM f (Scope name bind body) = do
+  bind' <- f bind
   body' <- f body
-  return $ Scope binds' body'
+  return $ Scope name bind' body'
 mapArgumentsM _ e = return e
 
 mapExpressions :: (Expression -> Expression) -> Expression -> Expression
@@ -103,14 +104,19 @@ flattenPaths :: Expression -> [[Expression]]
 flattenPaths = inner []
   where inner p e = (e : p) : List.concatMap (inner (e : p)) (arguments e)
 
-replaceArg :: Int -> [Type] -> Expression -> Global -> Global
-replaceArg i newArgs rep (Global args body) = Global (argsBefore ++ newArgs ++ argsAfter) $ mapExpressions inner body
-  where inner e@(LocalReference 0 n t)
+replaceArg :: String -> [(String, Type)] -> Expression -> Global -> Global
+replaceArg i newArgs rep (Global args body) = Global replacedArgs $ mapExpressions inner body
+  where inner e@(LocalReference n t)
           | n == i = rep
-          | n > i = LocalReference 0 (n + length newArgs - 1) t
           | otherwise = e
         inner e = e
-        (argsBefore, (_ : argsAfter)) = List.splitAt i args
+        replacedArgs = replaceWhere (\(n, _) -> n == i) newArgs args
+
+replaceWhere :: (a -> Bool) -> [a] -> [a] -> [a]
+replaceWhere _ _ [] = []
+replaceWhere f rep (l:ls)
+  | f l = rep ++ replaceWhere f rep ls
+  | otherwise = (l : replaceWhere f rep ls)
 
 prependLength :: String -> String
 prependLength s = (show $ length s) ++ s
@@ -122,21 +128,34 @@ mangle basename args = "_" ++ prependLength basename ++ "a" ++ List.concatMap (p
 mangleType :: Type -> String
 mangleType I64Type = "i64"
 
-closedOver :: Expression -> [(Int, Int, Type)]
-closedOver = uniqueBy (\(i, j, _) -> (i, j)) . coords 0
-  where coords level (LocalReference i j t)
-          | i > level = [(i - level, j, t)]
-          | otherwise = []
-        coords level e@(Scope _ _) = List.concatMap (coords (level + 1)) $ arguments e
-        coords level e@(Lambda _ _) = List.concatMap (coords (level + 1)) $ arguments e
-        coords level e = List.concatMap (coords level) $ arguments e
+closedOver :: Expression -> [(String, Type)]
+closedOver = uniqueBy (\(i, _) -> (i)) . coords
+  where coords (LocalReference i t) = [(i, t)]
+        coords e@(Scope name _ _) = List.filter (\(name', _) -> name' == name) $ List.concatMap coords $ arguments e
+        coords e@(Lambda args _) = List.filter (\(name', _) -> not $ List.elem name' argNames) $ List.concatMap coords $ arguments e
+          where argNames = map fst args
+        coords e = List.concatMap coords $ arguments e
 
 uniqueBy :: Ord b => (a -> b) -> [a] -> [a]
 uniqueBy f = List.nubBy (\a1 a2 -> (f a1) == (f a2)) . List.sortBy (\a1 a2 -> compare (f a1) (f a2))
 
-addArg :: (Int, Int) -> Expression -> Expression
-addArg _ (LocalReference 0 i t) = LocalReference 0 (i + 1) t
-addArg (i, j) e@(LocalReference i' j' t)
-  | i + 1 == i' && j == j' = LocalReference 0 0 t
+inlineBind :: (String, Expression) -> Expression -> Expression
+inlineBind (name, val) e@(LocalReference name' _)
+  | name' == name = val
   | otherwise = e
-addArg _ e = e
+inlineBind (name, val) e@(Scope name' bind body)
+  | name' == name = e
+  | otherwise = Scope name' (inlineBind (name, val) bind) (inlineBind (name, val) body)
+inlineBind (name, val) e@(Lambda args body)
+  | List.elem name argNames = e
+  | otherwise = Lambda args $ inlineBind (name, val) body
+  where argNames = map fst args
+inlineBind b e = mapArguments (inlineBind b) e
+
+addArg :: (String, Type) -> [(String, Type)] -> [(String, Type)]
+addArg (baseName, t) existing = (uniqName 1, t) : existing
+  where uniqName i
+          | List.filter ((== (newName i)) . fst) existing == [] = newName i
+          | otherwise = uniqName $ i + 1
+          where newName 1 = baseName
+                newName n = baseName ++ show n
