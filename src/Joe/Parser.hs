@@ -8,11 +8,13 @@ import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Joe.LLIR as LLIR
 import qualified Joe.Prim as Prim
-import Text.Parsec((<|>), choice, many, many1, option, sepBy1)
+import Text.Parsec((<|>), choice, endBy, many, many1, option, sepBy1, try)
 import Text.Parsec.Char (alphaNum, char, digit, lower, oneOf, spaces, string, upper)
 import Text.Parsec.Expr (Assoc(AssocLeft), buildExpressionParser, Operator(Infix), OperatorTable)
 import Text.Parsec.Text (Parser)
 import Text.Parsec.Token (makeTokenParser, GenLanguageDef(..), GenTokenParser)
+
+import Debug.Trace (traceShowId)
 
 moduleParser :: Parser LLIR.Globals
 moduleParser = do
@@ -63,10 +65,15 @@ functionDef = do
   t <- typeQualifier
   char ('=')
   spaces
-  body <- expression
-  char(';')
-  spaces
+  body <- assignmentBody
   return $ (name, LLIR.Global args t body)
+
+assignmentBody :: Parser LLIR.Expression
+assignmentBody = block <|> (do
+    e <- expression
+    char(';')
+    spaces
+    return e)
 
 exprTable :: OperatorTable Text () Identity LLIR.Expression
 exprTable = [
@@ -98,6 +105,7 @@ call = do
 atom :: Parser LLIR.Expression
 atom = choice [
   parens,
+  block,
   scopeRef,
   i64Literal
   ]
@@ -120,3 +128,18 @@ parens = do
   char ')'
   spaces
   return e
+
+block :: Parser LLIR.Expression
+block = do
+  char '{'
+  spaces
+  scopes <- many $ try $ do
+    name <- identifier
+    char '='
+    spaces
+    body <- assignmentBody
+    return (name, body)
+  e <- expression
+  char '}'
+  spaces
+  return $ List.foldr (\(name, body) -> LLIR.Scope name body) e scopes

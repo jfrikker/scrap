@@ -2,4 +2,12 @@
 
 main: I64 = add(999i64, 123i64);
 
-add(i1: I64, i2: I64): I64 = i1 + (i2 + i1);
+add(i1: I64, i2: I64): I64 = {
+  first = i2 + i1;
+  second = {
+    third = first + 1i64;
+    i2 + third
+  }
+  i1 + first + second
+}
+
