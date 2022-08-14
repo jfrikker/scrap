@@ -185,10 +185,19 @@ block = do
   spaces
   scopes <- many $ try $ do
     name <- identifier
+    args <- option [] $ do
+      char '('
+      spaces
+      a <- sepBy1 identifier $ char ',' >> spaces
+      char ')'
+      spaces
+      return a
     char '='
     spaces
     body <- assignmentBody
-    return (name, body)
+    case args of
+      [] -> return (name, body)
+      otherwise -> return (name, LLIR.Lambda (map (\a -> (a, LLIR.UnknownType)) args) body)
   e <- expression
   char '}'
   spaces

@@ -1,6 +1,9 @@
 
 
-main: I64 = flip(\(i1, i2) = i1 + i2, 1i64, 2i64);
+main: I64 = {
+  add(i1, i2) = i1 + i2;
+  flip(add, 1i64, 2i64)
+}
 
 flip(f: (I64, I64) -> I64, a1: I64, a2: I64) -> I64 = f(a2, a1);
 
