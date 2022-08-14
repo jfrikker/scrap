@@ -91,19 +91,24 @@ functionDef = do
           spaces
           return ([], t)
         functionDecl = do
-          char('(')
-          spaces
-          args <- (flip sepBy1) (char ',' >> spaces) $ do
-            argName <- identifier
-            argType <- typeQualifier
-            return (argName, argType)
-          char(')')
-          spaces
+          args <- argList
           string "->"
           spaces
           t <- nonFunctionType
           spaces
           return (args, t)
+
+argList :: Parser [(String, LLIR.Type)]
+argList = do
+  char('(')
+  spaces
+  args <- (flip sepBy1) (char ',' >> spaces) $ do
+    argName <- identifier
+    argType <- typeQualifier
+    return (argName, argType)
+  char(')')
+  spaces
+  return args
 
 assignmentBody :: Parser LLIR.Expression
 assignmentBody = block <|> (do
@@ -150,15 +155,12 @@ atom = choice [
 
 lambda :: Parser LLIR.Expression
 lambda = do
-  string "\\("
-  spaces
-  args <- sepBy1 identifier $ char ',' >> spaces
-  char ')'
-  spaces
+  char '\\'
+  args <- argList
   char '='
   spaces
   body <- expression
-  return $ LLIR.Lambda (map (\a -> (a, LLIR.UnknownType)) args) body
+  return $ LLIR.Lambda args body
 
 i64Literal :: Parser LLIR.Expression
 i64Literal = do
@@ -185,19 +187,13 @@ block = do
   spaces
   scopes <- many $ try $ do
     name <- identifier
-    args <- option [] $ do
-      char '('
-      spaces
-      a <- sepBy1 identifier $ char ',' >> spaces
-      char ')'
-      spaces
-      return a
+    args <- option [] argList
     char '='
     spaces
     body <- assignmentBody
     case args of
       [] -> return (name, body)
-      otherwise -> return (name, LLIR.Lambda (map (\a -> (a, LLIR.UnknownType)) args) body)
+      otherwise -> return (name, LLIR.Lambda args body)
   e <- expression
   char '}'
   spaces
