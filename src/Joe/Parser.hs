@@ -2,13 +2,14 @@ module Joe.Parser (
   moduleParser
 ) where
 
+import Data.Function ((&))
 import Data.Functor.Identity (Identity)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Joe.LLIR as LLIR
 import qualified Joe.Prim as Prim
-import Text.Parsec((<|>), choice, endBy, many, many1, option, sepBy1, try)
+import Text.Parsec((<|>), choice, endBy, many, many1, option, sepBy, sepBy1, try)
 import Text.Parsec.Char (alphaNum, char, digit, lower, oneOf, spaces, string, upper)
 import Text.Parsec.Expr (Assoc(AssocLeft), buildExpressionParser, Operator(Infix), OperatorTable)
 import Text.Parsec.Text (Parser)
@@ -28,6 +29,15 @@ identifier = do
   rest <- many $ alphaNum <|> char '_'
   spaces
   return $ first : rest
+
+qualifiedIdentifier :: Parser String
+qualifiedIdentifier = do
+  qs <- endBy qualifier $ char '.'
+  i <- identifier
+  return $ List.intercalate "." $ qs ++ [i]
+
+qualifier :: Parser String
+qualifier = typeIdentifier
 
 typeIdentifier :: Parser String
 typeIdentifier = do
@@ -78,12 +88,19 @@ constantDef = do
 
 functionDef :: Parser (String, LLIR.Global)
 functionDef = do
-  name <- identifier
+  qualifiedType <- option Nothing $ do
+    r <- nonFunctionType
+    char '.'
+    spaces
+    return $ Just r
+  name <- qualifiedIdentifier
   (args, t) <- choice [try constantDecl, functionDecl]
   char ('=')
   spaces
   body <- assignmentBody
-  return $ (name, LLIR.Global args t body)
+  case qualifiedType of
+    Nothing -> return $ (name, LLIR.Global args t body)
+    Just qt -> return $ ((LLIR.typeToQualifier qt) ++ name, LLIR.Global (("this", qt) : args) t body)
   where constantDecl = do
           char(':')
           spaces
@@ -130,19 +147,29 @@ binary c op = Infix p
           return $ LLIR.Binary op
 
 expression :: Parser LLIR.Expression
-expression = buildExpressionParser exprTable call
+expression = buildExpressionParser exprTable callOrMemberAccess
 
-call :: Parser LLIR.Expression
-call = do
+callOrMemberAccess :: Parser LLIR.Expression
+callOrMemberAccess = do
   f <- atom
-  calls <- many $ do
-    char '('
-    spaces
-    args <- sepBy1 expression (char ',' >> spaces)
-    char ')'
-    spaces
-    return args
-  return $ List.foldl LLIR.Call f calls
+  elems <- many $ choice [call, memberAccess]
+  return $ foldl (&) f elems
+
+call :: Parser (LLIR.Expression -> LLIR.Expression)
+call = do
+  char '('
+  spaces
+  args <- sepBy1 expression (char ',' >> spaces)
+  char ')'
+  spaces
+  return $ \f -> LLIR.Call f args
+
+memberAccess :: Parser (LLIR.Expression -> LLIR.Expression)
+memberAccess = do
+  char '.'
+  spaces
+  member <- identifier
+  return $ \o -> LLIR.MemberAccess o member
 
 atom :: Parser LLIR.Expression
 atom = choice [
@@ -170,7 +197,7 @@ i64Literal = do
   return $ LLIR.I64Literal $ read num
 
 scopeRef :: Parser LLIR.Expression
-scopeRef = identifier >>= return . LLIR.Reference
+scopeRef = qualifiedIdentifier >>= return . LLIR.Reference
 
 parens :: Parser LLIR.Expression
 parens = do

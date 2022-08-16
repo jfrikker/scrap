@@ -18,6 +18,7 @@ module Joe.LLIR (
   prependLength,
   replaceArg,
   Type(..),
+  typeToQualifier,
   uniqueBy,
 ) where
 
@@ -34,6 +35,7 @@ data Expression = LocalReference String Type |
   GlobalReference String Type |
   I64Literal Word64 |
   Lambda [(String, Type)] Expression |
+  MemberAccess Expression String |
   Reference String |
   Scope String Expression Expression deriving (Eq, Show)
 
@@ -160,3 +162,6 @@ addArg (baseName, t) existing = (uniqName 1, t) : existing
           | otherwise = uniqName $ i + 1
           where newName 1 = baseName
                 newName n = baseName ++ show n
+
+typeToQualifier :: Type -> String
+typeToQualifier I64Type = "I64."

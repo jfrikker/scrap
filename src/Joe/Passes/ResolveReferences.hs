@@ -24,6 +24,8 @@ resolveExprReferences scope (LLIR.Scope name bind body) = LLIR.Scope name newBin
         nested = Map.insert name (LLIR.LocalReference name $ LLIR.dataType newBind) scope
 resolveExprReferences scope (LLIR.Lambda args body) = LLIR.Lambda args $ resolveExprReferences nested body
   where nested = Map.union (Map.fromList $ map (\(name, t) -> (name, LLIR.LocalReference name t)) args) scope
+resolveExprReferences scope (LLIR.MemberAccess obj member) = resolveExprReferences scope $ LLIR.Call (LLIR.Reference $ (LLIR.typeToQualifier (LLIR.dataType obj')) ++ member) [obj']
+  where obj' = resolveExprReferences scope obj
 resolveExprReferences scope e = LLIR.mapArguments (resolveExprReferences scope) e
 
 globalRefs :: LLIR.Globals -> Map String LLIR.Expression

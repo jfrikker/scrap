@@ -2,8 +2,13 @@
 
 main: I64 = {
   add(i1: I64, i2: I64) = i1 + i2;
-  flip(add, 1i64, 2i64)
+  flip(add)(1i64, 2i64.incrementedTwice)
 }
 
 flip(f: (I64, I64) -> I64, a1: I64, a2: I64) -> I64 = f(a2, a1);
 
+I64.incrementBy(other: I64) -> I64 = this + other;
+
+I64.incremented: I64 = this.incrementBy(1i64);
+
+I64.incrementedTwice: I64 = this.incremented.incremented;
